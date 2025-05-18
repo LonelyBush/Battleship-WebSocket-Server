@@ -8,20 +8,27 @@ type Parsed = WSCall<User>;
 export const dispatchEvent = (message: RawData, ws: WebSocket) => {
   const messageString = message.toString();
   const parsed: Parsed = JSON.parse(messageString);
+  console.log(startDb.getAll('Users'));
 
   switch (parsed.type) {
     case 'reg':
       const { data } = parsed;
       const convertData: User = JSON.parse(data as unknown as string);
-
-      startDb.insert('Users', { ...convertData });
-
-      console.log(startDb.getAll('Users'));
-
-      createResponse<UserResponse>(ws, 'reg', {
-        name: convertData.name,
-        index: randomUuid(),
-      });
+      const findSame = startDb.find('Users', { ...convertData });
+      if (findSame.length > 0) {
+        createResponse<UserResponse>(ws, 'reg', {
+          error: true,
+          errorText: 'Such user is already logged in',
+          name: convertData.name,
+          index: randomUuid(),
+        });
+      } else {
+        startDb.insert('Users', { ...convertData });
+        createResponse<UserResponse>(ws, 'reg', {
+          name: convertData.name,
+          index: randomUuid(),
+        });
+      }
       break;
     default:
       ws.send(JSON.stringify({ error: 'Wrong type of request' }));
@@ -41,7 +48,6 @@ export const createResponse = <T>(
   const goJson = JSON.stringify(createResponse);
 
   ws.send(goJson, (err) => {
-    console.error(err);
     if (err) {
       ws.send(JSON.stringify({ error: 'Send failed' }));
     }

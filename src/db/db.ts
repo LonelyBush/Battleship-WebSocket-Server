@@ -52,6 +52,21 @@ export class InMemoryMapDB {
     return true;
   }
 
+  find<T extends DBContent>(collectionName: string, query: Omit<T, 'id'>) {
+    const getCollection = this.getAll(collectionName);
+
+    const getQuery = Object.entries(query);
+
+    const findByQuery = getCollection.filter((elem) => {
+      return getQuery.every(
+        ([queryKey, queryVal]) =>
+          elem.hasOwnProperty(queryKey) &&
+          queryVal === elem[queryKey as keyof typeof elem],
+      );
+    });
+    return findByQuery;
+  }
+
   delete(collectionName: string, id: string) {
     return this.collections.get(collectionName)?.delete(id) || false;
   }
