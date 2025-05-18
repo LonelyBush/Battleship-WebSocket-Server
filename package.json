@@ -1,18 +1,17 @@
 {
-    "name": "ws_task",
-    "version": "1.0.0",
-    "description": "Template for the WebSocket remote control task",
-    "main": "index.js",
-    "type": "module",
-    "scripts": {
-        "start": "node ./index.js",
-        "start:dev": "nodemon ./index.js",
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "author": "Andrei Auchynnikau",
-    "keywords": [],
-    "license": "ISC",
-    "devDependencies": {
+  "name": "battleship_ws_task",
+  "version": "1.0.0",
+  "description": "",
+  "main": "start.js",
+  "scripts": {
+    "build": "tsc",
+    "start:dev": "nodemon ./src/start.ts",
+    "start:prod": "npm run build && node ./dist/src/start.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
     "@babel/preset-env": "^7.24.0",
     "@babel/preset-typescript": "^7.23.3",
     "@types/jest": "^29.5.12",
@@ -34,9 +33,8 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3",
     "uuid": "^11.1.0"
-    },
-    "dependencies": {
-        "ws": "^8.8.0",
-        "dotenv": "^16.5.0"
-    }
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0"
+  }
 }
