@@ -1,11 +1,9 @@
-import { v4 as randomUuid } from 'uuid';
+import { RoomState, User } from 'types/types';
 
-interface DBContent {
-  id: string;
-}
+export type CollectionTypes = (RoomState | User) & { id?: string };
 
 export class InMemoryMapDB {
-  collections: Map<string, Map<string, DBContent>>;
+  collections: Map<string, Map<string, CollectionTypes>>;
   constructor() {
     this.collections = new Map();
   }
@@ -17,29 +15,29 @@ export class InMemoryMapDB {
     return this;
   }
 
-  insert<T extends DBContent>(
+  insert<T extends CollectionTypes>(
     collectionName: string,
-    data: Omit<T, 'id'>,
+    data: T,
+    id: string,
   ): string {
     if (!this.collections.has(collectionName)) {
       this.createCollection(collectionName);
     }
 
     const collection = this.collections.get(collectionName);
-    const id = randomUuid();
     const record = { ...data, id };
 
     collection!.set(id, record);
     return id;
   }
-  findById(collectionName: string, id: string) {
+  findById(collectionName: string, id: string): CollectionTypes | null {
     return this.collections.get(collectionName)?.get(id) || null;
   }
   getAll(collectionName: string) {
     const collection = this.collections.get(collectionName);
     return collection ? Array.from(collection.values()) : [];
   }
-  update<T extends DBContent>(
+  update<T extends CollectionTypes>(
     collectionName: string,
     id: string,
     newData: Partial<T>,
@@ -52,7 +50,10 @@ export class InMemoryMapDB {
     return true;
   }
 
-  find<T extends DBContent>(collectionName: string, query: Omit<T, 'id'>) {
+  find<T extends CollectionTypes>(
+    collectionName: string,
+    query: Omit<T, 'id'>,
+  ) {
     const getCollection = this.getAll(collectionName);
 
     const getQuery = Object.entries(query);
