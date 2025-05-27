@@ -33,6 +33,7 @@ export interface RoomState {
 export interface RoomUsers {
   name: string;
   index: string;
+  socket: WebSocket;
 }
 
 export interface UserResponse {
@@ -42,7 +43,33 @@ export interface UserResponse {
   errorText?: string;
 }
 
-export interface CreateGameResponse {
-  idGame: number | string;
-  idPlayer: number | string;
+export interface CreateGame {
+  gameId: string;
+  players: Player[];
 }
+
+export interface Ship {
+  position: {
+    x: number;
+    y: number;
+  };
+  direction: boolean;
+  length: number;
+  type: 'small' | 'medium' | 'large' | 'huge';
+}
+
+export interface Player {
+  indexPlayer: string;
+  ships?: Ship[];
+  socket?: WebSocket;
+}
+
+export type Room = {
+  indexRoom: string;
+};
+
+export type AddShips = {
+  gameId: string;
+  ships: Ship[];
+  indexPlayer: string;
+};

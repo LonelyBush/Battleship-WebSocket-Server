@@ -1,6 +1,6 @@
-import { RoomState, User } from 'types/types';
+import { CreateGame, RoomState, User } from 'types/types';
 
-export type CollectionTypes = (RoomState | User) & { id?: string };
+export type CollectionTypes = (RoomState | User | CreateGame) & { id?: string };
 
 export class InMemoryMapDB {
   collections: Map<string, Map<string, CollectionTypes>>;

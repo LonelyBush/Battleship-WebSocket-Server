@@ -1,9 +1,10 @@
-import { dispatchEvent, sendDBContent } from './ws_helpers/ws';
 import { InMemoryMapDB } from './db/db';
 import { httpServer } from './http/http';
 import { WebSocketServer } from 'ws';
 import { v4 as randomUuid } from 'uuid';
 import { RoomState } from 'types/types';
+import { dispatchEvent } from './ws/ws';
+import { sendDBContent } from './ws/helpers/helpers';
 
 const HTTP_PORT = 8181;
 export const startDb = new InMemoryMapDB();
@@ -23,18 +24,12 @@ wss.on('connection', (ws) => {
   ws.on('message', (message) => {
     dispatchEvent(message, ws, client_Id);
     broadcastUpdateRoom();
+    broadcastWinners();
   });
 
   ws.on('close', () => {
     console.log(`Клиент отключился ID ${client_Id}`);
-    const getRooms = startDb.getAll('Rooms') as unknown as RoomState[];
-    const findRoom = getRooms.find((elem) => {
-      return elem.roomUsers.some((el) => el.index === client_Id);
-    });
-    if (findRoom?.roomId) startDb.delete('Rooms', findRoom.roomId);
-    console.log(`Комната клиента ID ${client_Id} была удалена`);
-    console.log(getRooms);
-    broadcastUpdateRoom();
+    clearRooms(client_Id);
   });
 });
 
@@ -44,4 +39,20 @@ export const broadcastUpdateRoom = () => {
       return val.filter((elem) => elem.roomUsers.length === 1);
     });
   });
+};
+export const broadcastWinners = () => {
+  wss.clients.forEach((client) => {
+    sendDBContent(client, 'update_winners', startDb, 'Winners');
+  });
+};
+
+export const clearRooms = (clientId: string) => {
+  const getRooms = startDb.getAll('Rooms') as unknown as RoomState[];
+  const findRoom = getRooms.find((elem) => {
+    return elem.roomUsers.some((el) => el.index === clientId);
+  });
+  if (findRoom?.roomId) startDb.delete('Rooms', findRoom.roomId);
+  console.log(`Комната клиента ID ${clientId} была удалена`);
+  console.log(getRooms);
+  broadcastUpdateRoom();
 };
