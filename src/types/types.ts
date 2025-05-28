@@ -10,7 +10,8 @@ export type CallType =
   | 'start_game'
   | 'attack'
   | 'create_game'
-  | 'randomAttack';
+  | 'randomAttack'
+  | 'turn';
 
 export interface WSCall {
   type: CallType;
@@ -49,10 +50,7 @@ export interface CreateGame {
 }
 
 export interface Ship {
-  position: {
-    x: number;
-    y: number;
-  };
+  position: Cords;
   direction: boolean;
   length: number;
   type: 'small' | 'medium' | 'large' | 'huge';
@@ -63,6 +61,7 @@ export interface Player {
   ships: Ship[];
   socket?: WebSocket;
   field: number[][];
+  ship_positions: shipsPositions[];
 }
 
 export type Room = {
@@ -73,4 +72,25 @@ export type AddShips = {
   gameId: string;
   ships: Ship[];
   indexPlayer: string;
+};
+
+export type Attack = {
+  gameId: string;
+  x: number;
+  y: number;
+  indexPlayer: string;
+};
+
+export type shipsPositions = {
+  cords: Cords[];
+  type: string;
+};
+
+export type Cords = {
+  x: number;
+  y: number;
+};
+
+export type Turn = {
+  currentPlayer: string;
 };

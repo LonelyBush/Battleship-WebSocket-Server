@@ -2,15 +2,20 @@ import { startDb } from '../../start';
 import { v4 as randomUuid } from 'uuid';
 import {
   AddShips,
+  Attack,
+  Cords,
   CreateGame,
   Room,
   RoomState,
+  shipsPositions,
+  Turn,
   User,
   UserResponse,
 } from '../../types/types';
 import WebSocket from 'ws';
 import { createResponse } from './../helpers/helpers';
 import { InMemoryMapDB } from '../../db/db';
+import { translateShipType } from '../../utills/utills';
 
 export const regUser = (
   message: string,
@@ -57,7 +62,13 @@ export const createRoom = (
     getIindex,
   );
   const createPlayer = [
-    { indexPlayer: getPlayerId, ships: [], socket: ws, field: [] },
+    {
+      indexPlayer: getPlayerId,
+      ships: [],
+      socket: ws,
+      field: [],
+      ship_positions: [],
+    },
   ];
 
   db.insert(
@@ -104,6 +115,7 @@ export const addUserToRoom = (
     ships: [],
     socket: ws,
     field: [],
+    ship_positions: [],
   });
 
   db.update('Rooms', indexRoom, {
@@ -128,29 +140,35 @@ export const addUserToRoom = (
   console.log(db.getAll('Rooms'));
 };
 
-export const shipTypes = {
-  small: 1,
-  medium: 2,
-  large: 3,
-  huge: 4,
-};
-
 export const addShips = (message: string, db: InMemoryMapDB) => {
   const createField = [...Array(10)].map(() => Array(10).fill(0));
-  const { gameId, ships, indexPlayer }: AddShips = JSON.parse(message);
+  const shipPositions: shipsPositions[] = [];
+  const {
+    gameId,
+    ships,
+    indexPlayer: requestPlayer,
+  }: AddShips = JSON.parse(message);
   const findGame = db.findById('Games', gameId) as CreateGame;
 
   ships.forEach((ship) => {
     const { position, direction, length, type } = ship;
+    const shipCords: Cords[] = [];
     for (let i = 0; i < length; i++) {
       const y = direction ? position.y + i : position.y;
       const x = direction ? position.x : position.x + i;
-      createField[y]![x] = shipTypes[type];
+      createField[y]![x] = translateShipType(type);
+      shipCords.push({ x: x, y: y });
     }
+    shipPositions.push({ cords: shipCords, type });
   });
   const addShips = findGame.players.map((el) => {
-    if (el.indexPlayer === indexPlayer) {
-      return { ...el, ships: ships, field: createField };
+    if (el.indexPlayer === requestPlayer) {
+      return {
+        ...el,
+        ships: ships,
+        field: createField,
+        ship_positions: shipPositions,
+      };
     }
     return { ...el };
   });
@@ -169,9 +187,74 @@ export const addShips = (message: string, db: InMemoryMapDB) => {
           ships: ships,
           currentPlayerIndex: indexPlayer,
         });
+        createResponse(socket, 'turn', {
+          currentPlayer: requestPlayer,
+        });
+        db.insert('Turn', { currentPlayer: requestPlayer }, gameId);
       }
     });
   } else {
-    console.log(`Ships of ${indexPlayer} submited waiting for second player`);
+    console.log(`Ships of ${requestPlayer} submited waiting for second player`);
+  }
+};
+
+export const attackEvent = (message: string, db: InMemoryMapDB) => {
+  const { gameId, x, y, indexPlayer }: Attack = JSON.parse(message);
+  const findGame = db.findById('Games', gameId) as CreateGame;
+  const findTurn = db.findById('Turn', gameId) as Turn;
+  const attacker = indexPlayer;
+  let defender = '';
+  const attackEcho = {
+    position: {
+      x: x,
+      y: y,
+    },
+    currentPlayer: attacker,
+    status: 'miss',
+  };
+
+  const battlefield = findGame.players.map((player) => {
+    if (player.indexPlayer !== attacker) {
+      defender = player.indexPlayer;
+      const fire = player.field[y]![x];
+      console.log(`Cords: x:${x} y:${y}`);
+      console.log('Hit detector ' + (fire! > 0));
+      console.log(`Ship type: ${translateShipType(fire!)}`);
+      //console.log(player.ship_positions);
+      if (fire && fire > 0) {
+        const boatTag: number[] = [];
+        player.field[y]![x] = -1;
+
+        //console.log(player.field);
+        const findShip = player.ship_positions.find((ship) =>
+          ship.cords.some((el) => el.x === x && el.y === y),
+        );
+        findShip?.cords.forEach((cord) => {
+          boatTag.push(player.field[cord.y]![cord.x]!);
+        });
+        if (boatTag.every((el) => el === -1)) {
+          attackEcho.status = 'killed';
+        } else {
+          attackEcho.status = 'shot';
+        }
+        return { ...player };
+      }
+    }
+    return { ...player };
+  });
+  db.update('Game', gameId, { players: battlefield });
+  const getUpdatedGames = db.findById('Games', gameId) as CreateGame;
+  if (findTurn.currentPlayer === indexPlayer) {
+    getUpdatedGames.players.forEach((el) => {
+      const { socket } = el;
+      if (socket) {
+        const currentTurn = attackEcho.status === 'miss' ? defender : attacker;
+        createResponse(socket, 'attack', { ...attackEcho });
+        createResponse(socket, 'turn', {
+          currentPlayer: currentTurn,
+        });
+        db.update('Turn', gameId, { currentPlayer: currentTurn });
+      }
+    });
   }
 };

@@ -4,6 +4,7 @@ import WebSocket, { RawData } from 'ws';
 import {
   addShips,
   addUserToRoom,
+  attackEvent,
   createRoom,
   regUser,
 } from './handlers/handlers';
@@ -32,6 +33,10 @@ export const dispatchEvent = (
     }
     case 'add_ships': {
       addShips(data, startDb);
+      break;
+    }
+    case 'attack': {
+      attackEvent(data, startDb);
       break;
     }
     default:
