@@ -10,29 +10,28 @@ import {
 } from '../../types/types';
 import WebSocket from 'ws';
 import { createResponse } from './../helpers/helpers';
-import { ParsedData } from '../../ws/ws';
 import { InMemoryMapDB } from '../../db/db';
 
 export const regUser = (
-  message: ParsedData,
+  message: string,
   db: InMemoryMapDB,
   ws: WebSocket,
   currentClientId: string,
 ) => {
-  const { data } = message;
-  const convertData: User = JSON.parse(data as unknown as string);
-  const findSame = db.find('Users', { ...convertData });
+  const transform: User = JSON.parse(message);
+
+  const findSame = db.find('Users', { ...transform });
   if (findSame.length > 0) {
     createResponse<UserResponse>(ws, 'reg', {
       error: true,
       errorText: 'Such user is already logged in',
-      name: convertData.name,
+      name: transform.name,
       index: randomUuid(),
     });
   } else {
-    db.insert('Users', { ...convertData, socket: ws }, currentClientId);
+    db.insert('Users', { ...transform, socket: ws }, currentClientId);
     createResponse<UserResponse>(ws, 'reg', {
-      name: convertData.name,
+      name: transform.name,
       index: currentClientId,
     });
   }
@@ -45,10 +44,9 @@ export const createRoom = (
 ) => {
   const getIindex = randomUuid();
   const getPlayerId = randomUuid();
-  const { name, id } = db.findById(
-    'Users',
-    currentClientId,
-  ) as unknown as User & { id: string };
+  const { name, id } = db.findById('Users', currentClientId) as User & {
+    id: string;
+  };
 
   db.insert(
     'Rooms',
@@ -58,7 +56,9 @@ export const createRoom = (
     },
     getIindex,
   );
-  const createPlayer = [{ indexPlayer: getPlayerId, ships: [], socket: ws }];
+  const createPlayer = [
+    { indexPlayer: getPlayerId, ships: [], socket: ws, field: [] },
+  ];
 
   db.insert(
     'Games',
@@ -79,20 +79,18 @@ export const createRoom = (
 };
 
 export const addUserToRoom = (
-  message: ParsedData,
+  message: string,
   db: InMemoryMapDB,
   currentClientId: string,
   ws: WebSocket,
 ) => {
-  const findUserByIndex = startDb.findById(
-    'Users',
-    currentClientId,
-  ) as unknown as User & { id: string };
-  const { data } = message;
+  const findUserByIndex = startDb.findById('Users', currentClientId) as User & {
+    id: string;
+  };
   const playerId = randomUuid();
-  const { indexRoom }: Room = JSON.parse(data as unknown as string);
-  const findRoom = db.findById('Rooms', indexRoom) as unknown as RoomState;
-  const findGame = db.findById('Games', indexRoom) as unknown as CreateGame;
+  const { indexRoom }: Room = JSON.parse(message);
+  const findRoom = db.findById('Rooms', indexRoom) as RoomState;
+  const findGame = db.findById('Games', indexRoom) as CreateGame;
 
   const getRoomUsers = findRoom.roomUsers;
   getRoomUsers.push({
@@ -101,7 +99,12 @@ export const addUserToRoom = (
     socket: ws,
   });
   const getGamePlayers = findGame.players;
-  getGamePlayers.push({ indexPlayer: playerId, ships: [], socket: ws });
+  getGamePlayers.push({
+    indexPlayer: playerId,
+    ships: [],
+    socket: ws,
+    field: [],
+  });
 
   db.update('Rooms', indexRoom, {
     roomUsers: getRoomUsers,
@@ -110,10 +113,10 @@ export const addUserToRoom = (
 
   findRoom.roomUsers.forEach((user, i) => {
     const { index } = user;
-    const findUserByIndex = db.findById('Users', index) as unknown as User & {
+    const findUserByIndex = db.findById('Users', index) as User & {
       id: string;
     };
-    const findGame = db.findById('Games', indexRoom) as unknown as CreateGame;
+    const findGame = db.findById('Games', indexRoom) as CreateGame;
 
     createResponse(findUserByIndex.socket, 'create_game', {
       idGame: indexRoom,
@@ -125,33 +128,50 @@ export const addUserToRoom = (
   console.log(db.getAll('Rooms'));
 };
 
-export const addShips = (message: ParsedData, db: InMemoryMapDB) => {
-  const { data } = message;
-  const { gameId, ships, indexPlayer }: AddShips = JSON.parse(
-    data as unknown as string,
-  );
-  const findGame = db.findById('Games', gameId) as unknown as CreateGame;
+export const shipTypes = {
+  small: 1,
+  medium: 2,
+  large: 3,
+  huge: 4,
+};
+
+export const addShips = (message: string, db: InMemoryMapDB) => {
+  const createField = [...Array(10)].map(() => Array(10).fill(0));
+  const { gameId, ships, indexPlayer }: AddShips = JSON.parse(message);
+  const findGame = db.findById('Games', gameId) as CreateGame;
+
+  ships.forEach((ship) => {
+    const { position, direction, length, type } = ship;
+    for (let i = 0; i < length; i++) {
+      const y = direction ? position.y + i : position.y;
+      const x = direction ? position.x : position.x + i;
+      createField[y]![x] = shipTypes[type];
+    }
+  });
   const addShips = findGame.players.map((el) => {
     if (el.indexPlayer === indexPlayer) {
-      return { ...el, ships: ships };
+      return { ...el, ships: ships, field: createField };
     }
     return { ...el };
   });
 
   db.update('Games', gameId, { players: addShips });
-  const getUpdatedGames = db.findById('Games', gameId) as unknown as CreateGame;
+  const getUpdatedGames = db.findById('Games', gameId) as CreateGame;
 
   const validateShipsContent = getUpdatedGames.players.every(
     (el) => el.ships && el.ships?.length > 0,
   );
-
-  getUpdatedGames.players.forEach((el) => {
-    const { socket, ships, indexPlayer } = el;
-    if (validateShipsContent && socket) {
-      createResponse(socket, 'start_game', {
-        ships: ships,
-        currentPlayerIndex: indexPlayer,
-      });
-    }
-  });
+  if (getUpdatedGames.players.length > 1) {
+    getUpdatedGames.players.forEach((el) => {
+      const { socket, ships, indexPlayer } = el;
+      if (validateShipsContent && socket) {
+        createResponse(socket, 'start_game', {
+          ships: ships,
+          currentPlayerIndex: indexPlayer,
+        });
+      }
+    });
+  } else {
+    console.log(`Ships of ${indexPlayer} submited waiting for second player`);
+  }
 };

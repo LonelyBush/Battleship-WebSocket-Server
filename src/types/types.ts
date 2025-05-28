@@ -12,10 +12,10 @@ export type CallType =
   | 'create_game'
   | 'randomAttack';
 
-export interface WSCall<T> {
+export interface WSCall {
   type: CallType;
 
-  data: T;
+  data: string;
   id: number;
 }
 
@@ -60,8 +60,9 @@ export interface Ship {
 
 export interface Player {
   indexPlayer: string;
-  ships?: Ship[];
+  ships: Ship[];
   socket?: WebSocket;
+  field: number[][];
 }
 
 export type Room = {

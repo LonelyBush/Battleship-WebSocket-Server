@@ -1,5 +1,5 @@
 import { broadcastUpdateRoom, startDb } from '../start';
-import { AddShips, Room, User, WSCall } from '../types/types';
+import { WSCall } from '../types/types';
 import WebSocket, { RawData } from 'ws';
 import {
   addShips,
@@ -8,20 +8,17 @@ import {
   regUser,
 } from './handlers/handlers';
 
-export type ParsedData = WSCall<User> | WSCall<Room> | WSCall<AddShips>;
-
 export const dispatchEvent = (
   message: RawData,
   ws: WebSocket,
   client_Id: string,
 ) => {
   const messageString = message.toString();
-  const parsed: ParsedData = JSON.parse(messageString);
-  console.log(startDb.getAll('Users'));
+  const { type, data }: WSCall = JSON.parse(messageString);
 
-  switch (parsed.type) {
+  switch (type) {
     case 'reg': {
-      regUser(parsed, startDb, ws, client_Id);
+      regUser(data, startDb, ws, client_Id);
       break;
     }
     case 'create_room': {
@@ -30,11 +27,11 @@ export const dispatchEvent = (
       break;
     }
     case 'add_user_to_room': {
-      addUserToRoom(parsed, startDb, client_Id, ws);
+      addUserToRoom(data, startDb, client_Id, ws);
       break;
     }
     case 'add_ships': {
-      addShips(parsed, startDb);
+      addShips(data, startDb);
       break;
     }
     default:
