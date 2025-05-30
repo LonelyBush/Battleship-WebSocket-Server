@@ -84,6 +84,7 @@ export type Attack = {
 export type shipsPositions = {
   cords: Cords[];
   type: string;
+  direction: boolean;
 };
 
 export type Cords = {

@@ -5,6 +5,7 @@ import {
   Attack,
   Cords,
   CreateGame,
+  Player,
   Room,
   RoomState,
   shipsPositions,
@@ -13,9 +14,10 @@ import {
   UserResponse,
 } from '../../types/types';
 import WebSocket from 'ws';
-import { createResponse } from './../helpers/helpers';
+import { createResponse } from '../helpers/callHelpers';
 import { InMemoryMapDB } from '../../db/db';
 import { translateShipType } from '../../utills/utills';
+import { broadcastKilled } from '../../ws/helpers/broadcatsHelpers';
 
 export const regUser = (
   message: string,
@@ -159,7 +161,7 @@ export const addShips = (message: string, db: InMemoryMapDB) => {
       createField[y]![x] = translateShipType(type);
       shipCords.push({ x: x, y: y });
     }
-    shipPositions.push({ cords: shipCords, type });
+    shipPositions.push({ cords: shipCords, type, direction });
   });
   const addShips = findGame.players.map((el) => {
     if (el.indexPlayer === requestPlayer) {
@@ -204,6 +206,11 @@ export const attackEvent = (message: string, db: InMemoryMapDB) => {
   const findTurn = db.findById('Turn', gameId) as Turn;
   const attacker = indexPlayer;
   let defender = '';
+  const enemyShip: shipsPositions = {
+    cords: [],
+    type: '',
+    direction: false,
+  };
   const attackEcho = {
     position: {
       x: x,
@@ -220,12 +227,11 @@ export const attackEvent = (message: string, db: InMemoryMapDB) => {
       console.log(`Cords: x:${x} y:${y}`);
       console.log('Hit detector ' + (fire! > 0));
       console.log(`Ship type: ${translateShipType(fire!)}`);
-      //console.log(player.ship_positions);
+
       if (fire && fire > 0) {
         const boatTag: number[] = [];
         player.field[y]![x] = -1;
 
-        //console.log(player.field);
         const findShip = player.ship_positions.find((ship) =>
           ship.cords.some((el) => el.x === x && el.y === y),
         );
@@ -234,22 +240,32 @@ export const attackEvent = (message: string, db: InMemoryMapDB) => {
         });
         if (boatTag.every((el) => el === -1)) {
           attackEcho.status = 'killed';
+          Object.assign(enemyShip, findShip);
         } else {
           attackEcho.status = 'shot';
         }
-        return { ...player };
       }
+      return { ...player };
+    } else {
+      return { ...player };
     }
-    return { ...player };
-  });
-  db.update('Game', gameId, { players: battlefield });
+  }, []);
+  db.update('Game', gameId, { players: battlefield as Player[] });
   const getUpdatedGames = db.findById('Games', gameId) as CreateGame;
-  if (findTurn.currentPlayer === indexPlayer) {
+  if (findTurn.currentPlayer === attacker) {
     getUpdatedGames.players.forEach((el) => {
       const { socket } = el;
       if (socket) {
         const currentTurn = attackEcho.status === 'miss' ? defender : attacker;
-        createResponse(socket, 'attack', { ...attackEcho });
+        if (attackEcho.status === 'killed') {
+          console.log(el.field);
+          if (!enemyShip) return;
+          broadcastKilled(socket, enemyShip, attacker);
+        }
+        createResponse(socket, 'attack', {
+          ...attackEcho,
+          currentPlayer: attacker,
+        });
         createResponse(socket, 'turn', {
           currentPlayer: currentTurn,
         });

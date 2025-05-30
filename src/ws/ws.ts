@@ -1,4 +1,4 @@
-import { broadcastUpdateRoom, startDb } from '../start';
+import { startDb } from '../start';
 import { WSCall } from '../types/types';
 import WebSocket, { RawData } from 'ws';
 import {
@@ -8,6 +8,7 @@ import {
   createRoom,
   regUser,
 } from './handlers/handlers';
+import { broadcastUpdateRoom } from './helpers/broadcatsHelpers';
 
 export const dispatchEvent = (
   message: RawData,
