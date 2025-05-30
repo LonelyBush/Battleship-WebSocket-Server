@@ -1,5 +1,5 @@
 import { createResponse, sendDBContent } from './callHelpers';
-import { RoomState, shipsPositions } from 'types/types';
+import { RoomState, shipsPositions, Winner } from 'types/types';
 import { startDb, wss } from '../../start';
 import { handlePostKillFire } from '../../utills/utills';
 import { WebSocket } from 'ws';
@@ -13,7 +13,15 @@ export const broadcastUpdateRoom = () => {
 };
 export const broadcastWinners = () => {
   wss.clients.forEach((client) => {
-    sendDBContent(client, 'update_winners', startDb, 'Winners');
+    sendDBContent<Omit<Winner, 'winnerId'>>(
+      client,
+      'update_winners',
+      startDb,
+      'Winners',
+      (val) => {
+        return val.map((el) => ({ name: el.name, wins: el.wins }));
+      },
+    );
   });
 };
 

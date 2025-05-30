@@ -1,6 +1,12 @@
-import { CreateGame, RoomState, Turn, User } from 'types/types';
+import { CreateGame, RoomState, Turn, User, Winner } from 'types/types';
 
-export type CollectionTypes = (RoomState | User | CreateGame | Turn) & {
+export type CollectionTypes = (
+  | RoomState
+  | User
+  | CreateGame
+  | Turn
+  | Winner
+) & {
   id?: string;
 };
 

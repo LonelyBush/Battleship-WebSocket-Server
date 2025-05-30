@@ -66,6 +66,7 @@ export const createRoom = (
   const createPlayer = [
     {
       indexPlayer: getPlayerId,
+      name,
       ships: [],
       socket: ws,
       field: [],
@@ -115,6 +116,7 @@ export const addUserToRoom = (
   getGamePlayers.push({
     indexPlayer: playerId,
     ships: [],
+    name: findUserByIndex.name,
     socket: ws,
     field: [],
     ship_positions: [],
@@ -206,6 +208,8 @@ export const attackEvent = (message: string, db: InMemoryMapDB) => {
   const findTurn = db.findById('Turn', gameId) as Turn;
   const attacker = indexPlayer;
   let defender = '';
+  let defenderName = '';
+  let attackerName = '';
   const enemyShip: shipsPositions = {
     cords: [],
     type: '',
@@ -223,12 +227,18 @@ export const attackEvent = (message: string, db: InMemoryMapDB) => {
   const battlefield = findGame.players.map((player) => {
     if (player.indexPlayer !== attacker) {
       defender = player.indexPlayer;
+
+      defenderName = player.name;
+      attackerName =
+        findGame.players.find((player) => player.indexPlayer === attacker)
+          ?.name ?? '';
+
       const fire = player.field[y]![x];
       console.log(`Cords: x:${x} y:${y}`);
       console.log('Hit detector ' + (fire! > 0));
       console.log(`Ship type: ${translateShipType(fire!)}`);
 
-      if (fire && fire > 0) {
+      if ((fire && fire > 0) || fire === -1) {
         const boatTag: number[] = [];
         player.field[y]![x] = -1;
 
@@ -250,26 +260,47 @@ export const attackEvent = (message: string, db: InMemoryMapDB) => {
       return { ...player };
     }
   }, []);
+
   db.update('Game', gameId, { players: battlefield as Player[] });
   const getUpdatedGames = db.findById('Games', gameId) as CreateGame;
+
   if (findTurn.currentPlayer === attacker) {
+    console.log(`Current player: > ${attackerName}`);
     getUpdatedGames.players.forEach((el) => {
-      const { socket } = el;
+      const { socket, field } = el;
+      const isValidateWin = field.every((elem) =>
+        elem.every((nums) => nums <= 0),
+      );
       if (socket) {
         const currentTurn = attackEcho.status === 'miss' ? defender : attacker;
+        attackEcho.status === 'miss' ? defenderName : attackerName;
         if (attackEcho.status === 'killed') {
-          console.log(el.field);
           if (!enemyShip) return;
-          broadcastKilled(socket, enemyShip, attacker);
+          broadcastKilled(socket, enemyShip, currentTurn);
         }
         createResponse(socket, 'attack', {
           ...attackEcho,
           currentPlayer: attacker,
         });
-        createResponse(socket, 'turn', {
-          currentPlayer: currentTurn,
-        });
-        db.update('Turn', gameId, { currentPlayer: currentTurn });
+        console.log('Possible win is ' + isValidateWin, el.indexPlayer);
+
+        if (isValidateWin) {
+          db.insert(
+            'Winners',
+            { winnerId: attacker, name: attackerName, wins: 1 },
+            attacker,
+          );
+          getUpdatedGames.players.forEach((el) => {
+            createResponse(el.socket!, 'finish', {
+              winPlayer: attacker,
+            });
+          });
+        } else {
+          db.update('Turn', gameId, { currentPlayer: currentTurn });
+          createResponse(socket, 'turn', {
+            currentPlayer: currentTurn,
+          });
+        }
       }
     });
   }

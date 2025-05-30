@@ -11,7 +11,8 @@ export type CallType =
   | 'attack'
   | 'create_game'
   | 'randomAttack'
-  | 'turn';
+  | 'turn'
+  | 'finish';
 
 export interface WSCall {
   type: CallType;
@@ -59,6 +60,7 @@ export interface Ship {
 export interface Player {
   indexPlayer: string;
   ships: Ship[];
+  name: string;
   socket?: WebSocket;
   field: number[][];
   ship_positions: shipsPositions[];
@@ -94,4 +96,10 @@ export type Cords = {
 
 export type Turn = {
   currentPlayer: string;
+};
+
+export type Winner = {
+  winnerId: string;
+  name: string;
+  wins: number;
 };
