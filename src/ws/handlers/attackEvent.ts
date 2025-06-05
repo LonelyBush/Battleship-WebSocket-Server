@@ -108,11 +108,6 @@ export const attackEvent = (message: Attack, db: InMemoryMapDB) => {
               attacker,
             );
           }
-          db.insert(
-            'Winners',
-            { winnerId: attacker, name: attackerName, wins: 1 },
-            attacker,
-          );
           getUpdatedGames.players.forEach((el) => {
             createResponse(el.socket!, 'finish', {
               winPlayer: attacker,
