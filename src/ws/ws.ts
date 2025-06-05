@@ -1,14 +1,12 @@
 import { startDb } from '../start';
-import { WSCall } from '../types/types';
+import { RandomAttack, WSCall } from '../types/types';
 import WebSocket, { RawData } from 'ws';
-import {
-  addShips,
-  addUserToRoom,
-  attackEvent,
-  createRoom,
-  regUser,
-} from './handlers/handlers';
 import { broadcastUpdateRoom } from './helpers/broadcatsHelpers';
+import { regUser } from './handlers/regUser';
+import { createRoom } from './handlers/createRoom';
+import { addUserToRoom } from './handlers/addUserToRoom';
+import { addShips } from './handlers/addShips';
+import { attackEvent } from './handlers/attackEvent';
 
 export const dispatchEvent = (
   message: RawData,
@@ -37,7 +35,19 @@ export const dispatchEvent = (
       break;
     }
     case 'attack': {
-      attackEvent(data, startDb);
+      attackEvent(JSON.parse(data), startDb);
+      break;
+    }
+    case 'randomAttack': {
+      const { gameId, indexPlayer }: RandomAttack = JSON.parse(data);
+      const configAttack = {
+        gameId,
+        indexPlayer,
+        x: Math.floor(Math.random() * 10),
+        y: Math.floor(Math.random() * 10),
+      };
+
+      attackEvent(configAttack, startDb);
       break;
     }
     default:

@@ -6,6 +6,7 @@ import { dispatchEvent } from './ws/ws';
 import {
   broadcastUpdateRoom,
   broadcastWinners,
+  clearGames,
   clearRooms,
 } from './ws/helpers/broadcatsHelpers';
 
@@ -33,5 +34,8 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     console.log(`Клиент отключился ID ${client_Id}`);
     clearRooms(client_Id);
+    clearGames(client_Id);
+    broadcastUpdateRoom();
+    broadcastWinners();
   });
 });

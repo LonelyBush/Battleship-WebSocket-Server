@@ -83,6 +83,11 @@ export type Attack = {
   indexPlayer: string;
 };
 
+export type RandomAttack = {
+  gameId: string;
+  indexPlayer: string;
+};
+
 export type shipsPositions = {
   cords: Cords[];
   type: string;

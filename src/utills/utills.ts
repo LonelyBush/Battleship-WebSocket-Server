@@ -50,3 +50,11 @@ export const handlePostKillFire = (
     }
   }
 };
+
+export const generateRandomCords = () => {
+  const cords = {
+    x: Math.floor(Math.random() * 10),
+    y: Math.floor(Math.random() * 10),
+  };
+  return cords;
+};
